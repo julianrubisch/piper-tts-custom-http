@@ -24,21 +24,32 @@ sudo apt install -y libportaudio2 alsa-utils
 
 ## 📦 Installation
 
-Clone your project and install Python dependencies with `uv`:
+Clone the project and run the included install script. It will:
+
+- Ensure [`uv`](https://github.com/astral-sh/uv) is installed  
+- Create a `.venv` and install dependencies from `requirements.txt`  
+- Install ALSA tools if missing  
+- Download default Piper voices into `voices/`
 
 ```bash
 git clone https://github.com/yourusername/piper-http-server.git
 cd piper-http-server
 
-# install dependencies
-uv pip install -r requirements.txt
+# make the installer executable and run it
+chmod +x install.sh
+./install.sh
 ```
 
-Download a voice into the `voices/` directory:
+This will download these voices by default:
+
+- `en_US-lessac-medium`
+- `de_DE-thorsten-high`
+- `en_GB-cori-high`
+
+If you want to download specific voices instead, pass them as arguments:
 
 ```bash
-mkdir -p voices
-uv run -m piper.download_voices --voice en_US-lessac-medium --output voices
+./install.sh de_DE-thorsten-medium en_GB-cori-high
 ```
 
 (You can list available voices with `uv run -m piper.download_voices --list`.)
