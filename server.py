@@ -1,18 +1,53 @@
 # server.py
 import subprocess
 import os
+from pathlib import Path
 from flask import Flask, request, jsonify
 from piper.voice import PiperVoice
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL = os.path.join(BASE_DIR, "en_US-lessac-medium.onnx")
+BASE_DIR = Path(__file__).resolve().parent
+VOICES_DIR = BASE_DIR / "voices"
+
+AVAILABLE_VOICES = {
+    path.stem.replace("-", "_"): path
+    for path in VOICES_DIR.glob("*.onnx")
+}
+
+DEFAULT_VOICE = next(iter(AVAILABLE_VOICES)) if AVAILABLE_VOICES else None
+
+VOICES = {}            # id -> PiperVoice
+VOICE_META = {}        # id -> {"rate": int, "channels": int, "sample_width": int}
+# play_lock = threading.Lock()
+
+def get_voice(vid: str) -> tuple[PiperVoice, dict]:
+    if vid not in VOICES:
+        path = AVAILABLE_VOICES.get(vid)
+        if not path or not Path(path).exists():
+            raise FileNotFoundError(f"voice {vid} not found")
+        v = PiperVoice.load(str(path))
+        # peek one frame to learn format without consuming text later
+        # (we’ll read format at runtime from first chunk anyway)
+        VOICES[vid] = v
+        # lazy meta; filled on first synth
+        VOICE_META.setdefault(vid, {})
+    return VOICES[vid], VOICE_META[vid]
+
+# MODEL = os.path.join(BASE_DIR, "en_US-lessac-medium.onnx")
+
 ALSA  = "plughw:1,0"
 
-voice = PiperVoice.load(MODEL)
-sr = getattr(voice.config, "sample_rate",
-     getattr(voice.config, "sample_rate_hz", 22050))
-
+print("Loading default voice")
+voice = get_voice(DEFAULT_VOICE)[0]
+print("Finished loading default voice")
 app = Flask(__name__)
+
+@app.get("/voices")
+def voices():
+    return jsonify({
+        "default": DEFAULT_VOICE,
+        "loaded": VOICE_META,
+        "available": {k: str(v) for k, v in AVAILABLE_VOICES.items()}
+    })
 
 @app.post("/speak")
 def speak():
