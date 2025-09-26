@@ -16,6 +16,9 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 echo "uv: $(uv --version)"
 
+echo "==> Creating virtual environment..."
+uv venv
+
 echo "==> Installing Python deps..."
 if [[ -f "$REQ_FILE" ]]; then
   uv pip install -r "$REQ_FILE"
