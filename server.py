@@ -24,7 +24,10 @@ def get_voice(vid: str) -> tuple[PiperVoice, dict]:
         path = AVAILABLE_VOICES.get(vid)
         if not path or not Path(path).exists():
             raise FileNotFoundError(f"voice {vid} not found")
+        print(f"Loading voice {vid}")
         v = PiperVoice.load(str(path))
+        print(f"Finished loading voice {vid}")
+
         # peek one frame to learn format without consuming text later
         # (we’ll read format at runtime from first chunk anyway)
         VOICES[vid] = v
@@ -36,9 +39,7 @@ def get_voice(vid: str) -> tuple[PiperVoice, dict]:
 
 ALSA  = "plughw:1,0"
 
-print("Loading default voice")
 voice = get_voice(DEFAULT_VOICE)[0]
-print("Finished loading default voice")
 app = Flask(__name__)
 
 @app.get("/voices")
@@ -48,6 +49,24 @@ def voices():
         "loaded": VOICE_META,
         "available": {k: str(v) for k, v in AVAILABLE_VOICES.items()}
     })
+
+@app.post("/voices/load")
+def load_voice():
+    data = request.get_json(force=True)
+    vid = data["id"]
+    path = Path(data.get("path") or AVAILABLE_VOICES.get(vid))
+    if not path or not path.exists():
+        return jsonify({"error": f"voice path not found for {vid}"}), 404
+    AVAILABLE_VOICES[vid] = path
+    get_voice(vid)
+    return jsonify({"ok": True})
+
+@app.delete("/voices/<vid>")
+def unload_voice(vid):
+    v = VOICES.pop(vid, None)
+    VOICE_META.pop(vid, None)
+    # let GC free ONNX; no explicit close on PiperVoice
+    return jsonify({"ok": True, "unloaded": bool(v)})
 
 @app.post("/speak")
 def speak():
