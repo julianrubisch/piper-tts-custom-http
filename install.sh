@@ -45,7 +45,7 @@ fi
 
 echo "==> Downloading voices: ${VOICES[*]}"
 for v in "${VOICES[@]}"; do
-  uv run -m piper.download_voices --output "$VOICES_DIR" "$v"
+  uv run -m piper.download_voices --download-dir "$VOICES_DIR" "$v"
 done
 
 echo "==> Done."
